@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            xmlns:tools="http://schemas.android.com/tools" android:id="@+id/mobile_navigation.xml"
+            app:startDestination="@id/profileComponentFragment">
+    <fragment android:id="@+id/profileComponentFragment"
+              android:name="com.example.fmlm.fragment.profile.ProfileComponentFragment"
+              android:label="profile_component_fragment" tools:layout="@layout/profile_component_fragment"/>
+    <fragment android:id="@+id/routingComponentFragment"
+              android:name="com.example.fmlm.fragment.routing.RoutingComponentFragment"
+              android:label="routing_component_fragment" tools:layout="@layout/routing_component_fragment"/>
+    <fragment android:id="@+id/arComponentFragment"
+              android:name="com.example.fmlm.fragment.ar.ARComponentFragment"
+              android:label="arComponentFragment"/>
+    <fragment android:id="@+id/loginComponentFragment"
+              android:name="com.example.fmlm.fragment.login.LoginComponentFragment"
+              android:label="login_component_fragment" tools:layout="@layout/login_component_fragment"/>
+    <fragment android:id="@+id/registrationComponentFragment"
+              android:name="com.example.fmlm.fragment.login.LoginComponentFragment"
+              android:label="registration_component_fragment" tools:layout="@layout/registration_component_fragment"/>
+</navigation>

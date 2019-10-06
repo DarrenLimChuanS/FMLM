@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="Name">Name</string>
+    <string name="Age">Age</string>
+    <string name="Gender">Gender</string>
+    <string name="Method">Commute Method</string>
+    <string name="Reason">Commute Reason</string>
+    <string name="Confirm">Confirm</string>
+    <string name="Submit">Submit</string>
+
+    <string-array name="gender_list">
+        <item>Gender</item>
+        <item>Male</item>
+        <item>Female</item>
+        <item>Others</item>
+    </string-array>
+
+    <string-array name="commute_list">
+        <item>Commute Method</item>
+        <item>Bus</item>
+        <item>Train</item>
+        <item>Taxi</item>
+        <item>Bicycle</item>
+        <item>Others</item>
+    </string-array>
+</resources>

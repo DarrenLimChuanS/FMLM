@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="profile_component">Profile</string>
+    <string name="ar_component">AR</string>
+    <string name="routing_component">Routing</string>
+</resources>

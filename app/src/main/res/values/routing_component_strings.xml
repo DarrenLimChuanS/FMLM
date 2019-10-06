@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="destination">Your Destination</string>
+    <string name="button">Search</string>
+</resources>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<tools:menu xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:tools="http://schemas.android.com/tools"
+            tools:showIn="navigation_view">
+
+    <group android:checkableBehavior="single">
+        <item
+                android:id="@+id/nav_profileComponentFragment"
+                android:icon="@drawable/ic_account_circle_black_24dp"
+                android:title="@string/profile_component"/>
+
+        <item
+                android:id="@+id/nav_routingComponentFragment"
+                android:icon="@drawable/ic_directions_walk_black_24dp"
+                android:title="@string/routing_component"/>
+    </group>
+
+    <item
+            android:id="@+id/nav_loginComponentFragment"
+            android:icon="@drawable/ic_directions_walk_black_24dp"
+            android:title="Sign out"/>
+
+</tools:menu>
