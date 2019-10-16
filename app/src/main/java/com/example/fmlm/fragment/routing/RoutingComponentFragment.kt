@@ -150,14 +150,14 @@ class RoutingComponentFragment : Fragment() {
         /**
          * FIX: Use checkAndRequest Function
          */
-//        if(checkAndRequestPermission()) {
+        if(checkAndRequestPermission()) {
             // Initialize the osmdroid configuration
             Configuration.getInstance()
                 .load(
                     activity?.applicationContext,
                     PreferenceManager.getDefaultSharedPreferences(activity?.applicationContext)
                 )
-//        }
+        }
 
     }
 
@@ -306,7 +306,7 @@ class RoutingComponentFragment : Fragment() {
 
         builder.setPositiveButton("Set Permission") { dialog, which ->
             //  permissionsclass.requestPermission(type,code);
-            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:com.example.parsaniahardik.kotlin_marshmallowpermission")))
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context!!.getPackageName(), null)))
         }
 
         builder.setNegativeButton("Back") { dialog, which ->
@@ -470,9 +470,11 @@ class RoutingComponentFragment : Fragment() {
         Log.d(TAG, "---Setting up map---")
         // Hardcoded Bedok MRT
         if (currentLocation == null) {
+            val location: Location? = Location(LocationManager.GPS_PROVIDER)
+            location!!.latitude = 1.3240
+            location!!.longitude = 103.9302
             Log.d(TAG, "Current Location was null, hard code Bedok")
-            currentLocation!!.latitude = 1.3240
-            currentLocation!!.longitude = 103.9302
+            currentLocation = location
         }
         // Location is fetched, set up map to zoom into start point
         val start = GeoPoint(currentLocation!!.latitude, currentLocation!!.longitude)
@@ -487,6 +489,7 @@ class RoutingComponentFragment : Fragment() {
         startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
         startMarker.title = "Current Location"
 //        startMarker.icon = resources.getDrawable(R.drawable.ICON) ENHANCEMENT: Improve the pin icon
+        startMarker.showInfoWindow();
 
         mapView.invalidate() // FIX: Refresh map
         Log.d(TAG, "---Map set up and refreshed---")
@@ -505,8 +508,6 @@ class RoutingComponentFragment : Fragment() {
         val start = GeoPoint(currentLocation!!.latitude, currentLocation!!.longitude)
         Log.d(TAG, "Updated start loc lat: " + currentLocation!!.latitude.toString())
         Log.d(TAG, "Updated start loc long: " + currentLocation!!.longitude.toString())
-
-        geoCoder = GeocoderNominatim("FMLM/1.0")
 
         // Updated Start Point marker
         startMarker.position = start
@@ -628,8 +629,6 @@ class RoutingComponentFragment : Fragment() {
         val start = GeoPoint(currentLocation!!.latitude, currentLocation!!.longitude)
         Log.d(TAG, "Navigate start loc lat: " + currentLocation!!.latitude.toString())
         Log.d(TAG, "Navigate start loc long: " + currentLocation!!.longitude.toString())
-
-        geoCoder = GeocoderNominatim("FMLM/1.0")
 
         // Update Start Point marker if there is any change
         startMarker.position = start
