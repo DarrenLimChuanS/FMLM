@@ -17,6 +17,7 @@ import android.provider.Settings
 import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -102,6 +103,18 @@ class RoutingComponentFragment : Fragment() {
      */
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val v = inflater.inflate(R.layout.routing_component_fragment, container, false)
+        /**
+         * Listener to detect X/Y coordinates of the mobile screen
+         */
+//        v.setOnTouchListener(object: View.OnTouchListener {
+//            override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+//                if(event!!.getAction() == MotionEvent.ACTION_DOWN) {
+//                    Log.d("RoutingFragment", "You click at x = " + event.getX() + " and y = " + event.getY())
+//                }
+//                return true
+//            }
+//        } )
+
         Log.d(TAG, "---onCreate---")
         nameTextBox = v.findViewById(R.id.TextInputEditText)
 
@@ -113,6 +126,14 @@ class RoutingComponentFragment : Fragment() {
         mapView.overlays.add(startMarker)
         mapView.overlays.add(endMarker)
         mapView.overlays.add(MapEventsOverlay(mReceive))
+        /**
+         * Listener to detect when the map is first fully loaded
+         */
+        mapView.addOnFirstLayoutListener(object: MapView.OnFirstLayoutListener {
+            override fun onFirstLayout(v: View?, left: Int, top: Int, right: Int, bottom: Int) {
+                Log.d(TAG, "Map Fully loaded")
+            }
+        })
 
         // Get Text Input
         textInputDestination = v.findViewById(R.id.text_input_destination)
@@ -197,6 +218,8 @@ class RoutingComponentFragment : Fragment() {
             }
         } else {
             // No runtime permission needed
+            getLocation()
+            setUpMap()
             return true
         }
     }
