@@ -14,11 +14,13 @@ import androidx.lifecycle.ViewModelProviders
 import android.preference.PreferenceManager
 import android.provider.Settings
 import android.util.Log
+import android.view.Gravity
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
@@ -29,6 +31,7 @@ import com.example.fmlm.R
 import com.google.android.gms.location.*
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import kotlinx.android.synthetic.main.routing_component_fragment.*
 import org.osmdroid.bonuspack.location.GeocoderNominatim
 import org.osmdroid.bonuspack.routing.OSRMRoadManager
 import org.osmdroid.bonuspack.routing.Road
@@ -116,6 +119,9 @@ class RoutingComponentFragment : Fragment() {
 //        } )
 
         Log.d(TAG, "---onCreateView Lifecycle---")
+        // Set up LocationManager
+        locationManager = activity!!.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
         nameTextBox = v.findViewById(R.id.TextInputEditText)
 
         // Map fragment
@@ -146,10 +152,17 @@ class RoutingComponentFragment : Fragment() {
 
         // FIX: Check Android 6.0 run time permission before running getLocation
         if(checkAndRequestPermission()) {
-            Log.d(TAG, "---onCreate: Granted---")
+            Log.d(TAG, "---onCreateView: Permission Granted---")
             // Permission granted allowed to get location
             getLocation()
-            setUpMap()
+            /**
+             * ENHANEMENT: Prompt user to provide current location once if no location received.
+             */
+            if (currentLocation == null) {
+                requestLocationDialog("\nPlease key in your current location below to proceed")
+            } else {
+                setUpMap()
+            }
         }
 
         return v
@@ -237,7 +250,14 @@ class RoutingComponentFragment : Fragment() {
         } else {
             // No runtime permission needed
             getLocation()
-            setUpMap()
+            /**
+             * ENHANEMENT: Prompt user to provide current location once if no location received.
+             */
+            if (currentLocation == null) {
+                requestLocationDialog("\nPlease key in your current location below to proceed")
+            } else {
+                setUpMap()
+            }
             return true
         }
     }
@@ -270,33 +290,35 @@ class RoutingComponentFragment : Fragment() {
                 if (grantResults.size > 0) {
                     for (i in permissions.indices)
                         perms[permissions[i]] = grantResults[i]
-                    // Check for both permissions
+                    // Check for three permissions
                     if (perms[Manifest.permission.ACCESS_FINE_LOCATION] == PackageManager.PERMISSION_GRANTED
                         && perms[Manifest.permission.ACCESS_COARSE_LOCATION] == PackageManager.PERMISSION_GRANTED
                         && perms[Manifest.permission.WRITE_EXTERNAL_STORAGE] == PackageManager.PERMISSION_GRANTED) {
-                        Log.d(TAG, perms[Manifest.permission.ACCESS_FINE_LOCATION].toString())
-                        Log.d(TAG, perms[Manifest.permission.ACCESS_COARSE_LOCATION].toString())
-                        Log.d(TAG, perms[Manifest.permission.WRITE_EXTERNAL_STORAGE].toString())
                         Log.d(TAG, "Callback: Permission Granted")
-                        // process the normal flow
                         // Permission granted allowed to get location
                         getLocation()
-                        setUpMap()
-                        //else any one or both the permissions are not granted
+                        /**
+                         * ENHANEMENT: Prompt user to provide current location once if no location received.
+                         */
+                        if (currentLocation == null) {
+                            requestLocationDialog("\nPlease key in your current location below to proceed")
+                        } else {
+                            setUpMap()
+                        }
                     } else {
+                        // One or more permission is not granted
                         Log.d(TAG, "Some permissions are not granted ask again ")
-                        //permission is denied (this is the first time, when "never ask agian" is not checked) so ask again explaining the usage of permission
-                        // shouldShowRequestPermissionRationale will return true
-                        //show the dialog or snackbar saying its necessary and try again otherwise proceed with setup.
+                        // Permission is denied and "never ask again" is not checked, shouldShowRequestPermissionRationale == true
+                        // Show dialog and prompt requestPermission again
                         if (ActivityCompat.shouldShowRequestPermissionRationale(activity!!, Manifest.permission.ACCESS_FINE_LOCATION)
                             || ActivityCompat.shouldShowRequestPermissionRationale(activity!!, Manifest.permission.ACCESS_COARSE_LOCATION)
                             || ActivityCompat.shouldShowRequestPermissionRationale(activity!!, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                            showDialogOK("Service Permissions are required for this app")
+                            explainAndRequestPermissionDialog("Service Permissions are required for this app")
                         } else {
-                            explain("You need to give some mandatory permissions to continue. Do you want to go to app settings?")
-                            //                            //proceed with logic by disabling the related features or quit the app.
-                        }//permission is denied (and never ask again is  checked)
-                        //shouldShowRequestPermissionRationale will return false
+                            // Permission is denied and "never ask again" is checked, shouldShowRequestPermissionRationale == false
+                            // Show dialog and get them to change their settings to allow location
+                            explainAndAppSettingDialog("You need to give some mandatory permissions to continue. Do you want to go to app settings?")
+                        }
                     }
                 }
             }
@@ -304,9 +326,9 @@ class RoutingComponentFragment : Fragment() {
     }
 
     /**
-     * ENHANCEMENT: Add Dialog box for Explanation to set permission
+     * ENHANCEMENT: Add Dialog box for Explanation to request permission
      */
-    private fun showDialogOK(message: String) {
+    private fun explainAndRequestPermissionDialog(message: String) {
         // Late initialize an alert dialog object
         lateinit var dialog:AlertDialog
 
@@ -334,7 +356,7 @@ class RoutingComponentFragment : Fragment() {
     /**
      * ENHANCEMENT: Add Dialog box for Explanation to navigate to app settings
      */
-    private fun explain(message: String) {
+    private fun explainAndAppSettingDialog(message: String) {
         // Late initialize an alert dialog object
         lateinit var dialog:AlertDialog
 
@@ -372,8 +394,6 @@ class RoutingComponentFragment : Fragment() {
      */
     @SuppressLint("MissingPermission")
     private fun getLocation(){
-        // Set up LocationManager and Listener
-        locationManager = activity!!.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         hasGPS = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
         hasNetwork = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
         Log.d(TAG, "---First Get Location---")
@@ -482,17 +502,6 @@ class RoutingComponentFragment : Fragment() {
      */
     private fun setUpMap() {
         Log.d(TAG, "---Setting up map---")
-        /**
-         * TODO ENHANEMENT: Prompt user to provide current location once if no location received.
-         */
-        // Hardcoded Bedok MRT
-        if (currentLocation == null) {
-            val location: Location? = Location(LocationManager.GPS_PROVIDER)
-            location!!.latitude = 1.3240
-            location!!.longitude = 103.9302
-            Log.d(TAG, "Current Location was null, hard code Bedok")
-            currentLocation = location
-        }
         // Location is fetched, set up map to zoom into start point
         val start = GeoPoint(currentLocation!!.latitude, currentLocation!!.longitude)
         mapView.setTileSource(TileSourceFactory.MAPNIK)
@@ -509,6 +518,49 @@ class RoutingComponentFragment : Fragment() {
 
         mapView.invalidate() // FIX: Refresh map
         Log.d(TAG, "---Map set up and refreshed---")
+    }
+
+    /**
+     * ENHANCEMENT: Add Dialog box for prompting current location
+     */
+    private fun requestLocationDialog(message: String) {
+        // Late initialize an alert dialog object
+        lateinit var dialog:AlertDialog
+
+        // Initialize a new instance of alert dialog builder object
+        val builder = AlertDialog.Builder(activity!!)
+
+        builder.setTitle("Sorry, your location is not found!")
+
+        builder.setMessage(message)
+
+        // Layout params
+        val lparams : FrameLayout.LayoutParams = FrameLayout.LayoutParams(800,150)
+        lparams.gravity = Gravity.CENTER
+
+        // Textbox
+        val input : TextInputEditText = TextInputEditText(activity!!)
+        input.setBackgroundColor(resources.getColor(R.color.colorPrimary))
+        builder.setView(input)
+
+        builder.setPositiveButton("Set Current Location") { dialog, which ->
+            val currentPoint = getCoord(input.text.toString())
+            val location: Location? = Location(LocationManager.GPS_PROVIDER)
+            location!!.latitude = currentPoint.latitude
+            location!!.longitude = currentPoint.longitude
+            currentLocation = location
+            setUpMap() }
+
+        builder.setNegativeButton("Back") { dialog, which ->
+            activity!!.supportFragmentManager.popBackStack() }
+
+        dialog = builder.create()
+
+        dialog.show()
+        input.setLayoutParams(lparams)
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(resources.getColor(R.color.colorPrimaryDark))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(resources.getColor(R.color.colorPrimaryDark))
+        dialog.setCanceledOnTouchOutside(false)
     }
 
     inner class updateRoutes:Runnable{
