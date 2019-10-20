@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.*
@@ -17,21 +16,17 @@ import android.provider.Settings
 import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
 import androidx.core.content.PermissionChecker.checkCallingOrSelfPermission
 
 import com.example.fmlm.R
 import com.google.android.gms.location.*
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.tasks.OnSuccessListener
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import org.osmdroid.bonuspack.location.GeocoderNominatim
@@ -74,6 +69,11 @@ class RoutingComponentFragment : Fragment() {
     private lateinit var locationRequest: LocationRequest
     private var hasGPS = false
     private var hasNetwork = false
+    /**
+     * FIX: Leaky Location Listeners for location updates
+     */
+    private val gpsListener = GPSListener()
+    private val networkListener = NetworkListener()
 
     // Current Destination
     private var curDestination:GeoPoint = GeoPoint(0.0,0.0)
@@ -85,13 +85,13 @@ class RoutingComponentFragment : Fragment() {
 
     private lateinit var viewModel: RoutingComponentViewModel
 
+    // Map Event listener
     inner class MapPinOverlay: org.osmdroid.events.MapEventsReceiver {
         override fun longPressHelper(p: GeoPoint?): Boolean {
             return false
         }
 
         override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
-
             setPin(p!!)
             return false
         }
@@ -109,13 +109,13 @@ class RoutingComponentFragment : Fragment() {
 //        v.setOnTouchListener(object: View.OnTouchListener {
 //            override fun onTouch(v: View?, event: MotionEvent?): Boolean {
 //                if(event!!.getAction() == MotionEvent.ACTION_DOWN) {
-//                    Log.d("RoutingFragment", "You click at x = " + event.getX() + " and y = " + event.getY())
+//                    Log.d(TAG, "You click at x = " + event.getX() + " and y = " + event.getY())
 //                }
 //                return true
 //            }
 //        } )
 
-        Log.d(TAG, "---onCreate---")
+        Log.d(TAG, "---onCreateView Lifecycle---")
         nameTextBox = v.findViewById(R.id.TextInputEditText)
 
         // Map fragment
@@ -155,8 +155,13 @@ class RoutingComponentFragment : Fragment() {
         return v
     }
 
+    /**
+     * LifeCycle after onCreateView where location and map is up
+     * Set up ViewModel, GeoCoder, Shared Preference to be used
+     */
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
+        Log.d(TAG, "---onActivityCreated Lifecycle---")
         viewModel = ViewModelProviders.of(this).get(RoutingComponentViewModel::class.java)
 
         // Create Geocoder
@@ -168,30 +173,43 @@ class RoutingComponentFragment : Fragment() {
         val policy = StrictMode.ThreadPolicy.Builder().permitAll().build()
         StrictMode.setThreadPolicy(policy)
 
-        /**
-         * FIX: Use checkAndRequest Function
-         */
-        if(checkAndRequestPermission()) {
-            // Initialize the osmdroid configuration
-            Configuration.getInstance()
-                .load(
-                    activity?.applicationContext,
-                    PreferenceManager.getDefaultSharedPreferences(activity?.applicationContext)
-                )
-        }
-
+        // Initialize the osmdroid configuration
+        Configuration.getInstance()
+            .load(
+                activity?.applicationContext,
+                PreferenceManager.getDefaultSharedPreferences(activity?.applicationContext)
+            )
     }
 
-    override fun onPause() {
-        super.onPause()
-        mapView.onPause()
-        //stopLocationUpdates()
-    }
-
+    /**
+     * Lifecycle after onActivityCreated to proceed to resuming the fragment
+     */
     override fun onResume() {
         super.onResume()
+        Log.d(TAG, "---onResume Lifecycle---")
         mapView.onResume()
-        //startLocationUpdates()
+    }
+
+    /**
+     * FIX: Leaky Location Listeners
+     * Lifecycle where the user navigates to another fragment. Stop Location Listeners
+     */
+    override fun onPause() {
+        super.onPause()
+        Log.d(TAG, "---onPause Lifecycle---")
+        mapView.onPause()
+        locationManager.removeUpdates(gpsListener)
+        locationManager.removeUpdates(networkListener)
+        Log.d(TAG, "---Location Listeners stopped---")
+    }
+
+    /**
+     * After onPause, onDestroyView is called.
+     * Once the user proceed back to RoutingFragment, onCreateView is called again
+     */
+    override fun onDestroyView() {
+        super.onDestroyView()
+        Log.d(TAG, "---onDestroyView Lifecycle---")
     }
     /**
      * ====================================END OF LIFECYCLE=================================================
@@ -207,11 +225,11 @@ class RoutingComponentFragment : Fragment() {
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
             Log.d(TAG, "---Permission Check---")
             if(checkPermission(permissions)){
-                Log.d(TAG, "---Permission Check Granted---")
+                Log.d(TAG, "Permission Check Granted")
                 // Permission granted
                 return true
             } else{
-                Log.d(TAG, "---Permission Check Request---")
+                Log.d(TAG, "Permission Check Request")
                 // Permission not granted, proceed to request
                 requestPermissions(permissions,PERMISSION_REQUEST)
                 return false
@@ -354,93 +372,39 @@ class RoutingComponentFragment : Fragment() {
      */
     @SuppressLint("MissingPermission")
     private fun getLocation(){
-
-        // Set up Fused
-//        fusedLocationClient = LocationServices.getFusedLocationProviderClient(activity!!)
-//        fusedLocationClient.getLastLocation()
-//            .addOnSuccessListener(activity!!, OnSuccessListener<Location> { location ->
-//                // Got last known location. In some rare situations this can be null.
-//                if (location != null) {
-//                    // Logic to handle location object
-//                    currentLocation = location;
-//                }
-//            })
-//        fusedLocationClient = LocationServices.getFusedLocationProviderClient(activity!!.applicationContext)
-//        locationCallback = object : LocationCallback() {
-//            override fun onLocationResult(locationResult: LocationResult?) {
-//                Log.d(TAG, "HEYHEY")
-//                if (locationResult == null) {
-//                    fusedLocationClient.removeLocationUpdates(locationCallback)
-//                    return
-//                }
-//                for (location in locationResult.locations){
-//                    currentLocation = location
-//                    fusedLocationClient.removeLocationUpdates(locationCallback)
-//                }
-//            }
-//        }
-//        createLocationRequest()
-//        startLocationUpdates()
-
         // Set up LocationManager and Listener
         locationManager = activity!!.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         hasGPS = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
         hasNetwork = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-        Log.d(TAG, "---First getLocation---")
-        val listener = MyListener()
+        Log.d(TAG, "---First Get Location---")
         if(hasGPS || hasNetwork)
         {
             //can use gps
             if(hasGPS){
-                Log.d(TAG,"---GPS Identified---")
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 5.0f, listener)
+                Log.d(TAG,"GPS Listener started")
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 5.0f, gpsListener)
                 val localGPS = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                 if(localGPS != null) {
-                    Log.d(TAG,"---GPS Last known location found---")
+                    Log.d(TAG,"GPS Last known location found")
                     currentLocation = localGPS
                     Log.d(TAG, "GPS Loc Lat: " + currentLocation!!.latitude.toString())
                     Log.d(TAG, "GPS Loc Long: " + currentLocation!!.longitude.toString())
                 }
             }
             if(hasNetwork){
-                Log.d(TAG,"---NETWORK Identified---")
-                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000, 5.0f, object:
-                    LocationListener {
-                    override fun onLocationChanged(location: Location?) {
-                        Log.d(TAG,"---DETECTED NETWORK ON CHANGE---")
-                        if(location != null)
-                        currentLocationNetwork = location
-                        val handler = Handler()
-                        val r = updateRoutes()
-                        handler.postDelayed(r, 0)
-                        compareGPSAndNetwork()
-                    }
-
-                    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
-                    }
-
-                    override fun onProviderEnabled(provider: String?) {
-                    }
-
-                    override fun onProviderDisabled(provider: String?) {
-                    }
-
-                })
+                Log.d(TAG,"NETWORK Listener started")
+                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000, 5.0f, networkListener)
                 val localNetworl = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
                 if(localNetworl != null) {
-                    Log.d(TAG,"---Network Last known location found---")
+                    Log.d(TAG,"Network Last known location found")
                     currentLocationNetwork = localNetworl
                     Log.d(TAG, "Network Loc Lat: " + currentLocationNetwork!!.latitude.toString())
                     Log.d(TAG, "Network Loc Long: " + currentLocationNetwork!!.longitude.toString())
                 }
             }
-
             // Compare GPS and Network to get best accuracy
             compareGPSAndNetwork()
-
         }
-        //locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0.0f, listener)
-        //currentLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
     }
 
     /**
@@ -459,9 +423,10 @@ class RoutingComponentFragment : Fragment() {
     }
 
     /**
+     * FIX: Leaky Location Listener
      * Listener for GPS Location
      */
-    inner class MyListener : LocationListener {
+    inner class GPSListener : LocationListener {
         override fun onLocationChanged(location: Location?) {
             Log.d(TAG,"---DETECTED GPS ON CHANGE---")
 
@@ -476,13 +441,39 @@ class RoutingComponentFragment : Fragment() {
         }
 
         override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
-            Log.d(TAG, "Status" + status.toString())
+            Log.d(TAG, "GPS Status" + status.toString())
         }
         override fun onProviderEnabled(provider: String?) {
-            Log.d(TAG, "Provider Enabled" + provider)
+            Log.d(TAG, "GPS Provider Enabled" + provider)
         }
         override fun onProviderDisabled(provider: String?) {
-            Log.d(TAG, "Provider Disabled" + provider)
+            Log.d(TAG, "GPS Provider Disabled" + provider)
+        }
+    }
+
+    /**
+     * FIX: Leaky Location Listener
+     * Listener for Network Location
+     */
+    inner class NetworkListener : LocationListener {
+        override fun onLocationChanged(location: Location?) {
+            Log.d(TAG,"---DETECTED NETWORK ON CHANGE---")
+            if(location != null)
+                currentLocationNetwork = location
+            val handler = Handler()
+            val r = updateRoutes()
+            handler.postDelayed(r, 0)
+            compareGPSAndNetwork()
+        }
+
+        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
+            Log.d(TAG, "Network Status" + status.toString())
+        }
+        override fun onProviderEnabled(provider: String?) {
+            Log.d(TAG, "Network Provider Enabled" + provider)
+        }
+        override fun onProviderDisabled(provider: String?) {
+            Log.d(TAG, "Network Provider Disabled" + provider)
         }
     }
 
@@ -491,6 +482,9 @@ class RoutingComponentFragment : Fragment() {
      */
     private fun setUpMap() {
         Log.d(TAG, "---Setting up map---")
+        /**
+         * TODO ENHANEMENT: Prompt user to provide current location once if no location received.
+         */
         // Hardcoded Bedok MRT
         if (currentLocation == null) {
             val location: Location? = Location(LocationManager.GPS_PROVIDER)

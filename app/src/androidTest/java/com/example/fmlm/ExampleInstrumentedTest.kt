@@ -27,6 +27,9 @@ class ExampleInstrumentedTest {
 
     @Rule @JvmField var activityActivityTestRule = ActivityTestRule(MainActivity::class.java)
 
+    /**
+     * PERFORMANCE TEST 01: Time to load map after calling Routing Screen
+     */
     @Test
     fun perf01DisplayMap() {
         onView(withId(R.id.drawer_layout)).perform(DrawerActions.open())
@@ -40,6 +43,9 @@ class ExampleInstrumentedTest {
         Log.d(TAG, "PERF01 took: " + endTime.toString() + "ms")
     }
 
+    /**
+     * PERFORMANCE TEST 03: Time to get routes in the map after pin is set
+     */
     @Test
     fun perf03PinMap() {
         // Record the iterated values
@@ -65,6 +71,9 @@ class ExampleInstrumentedTest {
         Log.d(TAG, "PREF03 - Average time for 10 iterations: " + resultList.average().toString() + "ms")
     }
 
+    /**
+     * PERFORMANCE TEST 04: Time to get routes in the map after location is searched for in textbox
+     */
     @Test
     fun perf04SearchMap() {
         // Record the iterated values
