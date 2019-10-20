@@ -609,6 +609,9 @@ class RoutingComponentFragment : Fragment() {
 
         // Display on UI
         textInputDestination.editText!!.setText(separated[0], TextView.BufferType.EDITABLE)
+        /**
+         * ENHANCEMENT: Added the destination name to the marker and show it to the user
+         */
         endMarker.title = separated[0] + separated[1]
         endMarker.showInfoWindow();
 
@@ -731,6 +734,9 @@ class RoutingComponentFragment : Fragment() {
 
         // Display on UI
         textInputDestination.editText!!.setText(separated[0], TextView.BufferType.EDITABLE)
+        /**
+         * ENHANCEMENT: Added the destination name to the marker and show it to the user
+         */
         endMarker.title = separated[0] + separated[1]
         endMarker.showInfoWindow();
 
