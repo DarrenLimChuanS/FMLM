@@ -505,7 +505,6 @@ class RoutingComponentFragment : Fragment() {
         startMarker.position = start
         startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
         startMarker.title = "Current Location"
-//        startMarker.icon = resources.getDrawable(R.drawable.ICON) ENHANCEMENT: Improve the pin icon
         startMarker.showInfoWindow();
 
         mapView.invalidate() // FIX: Refresh map
@@ -545,24 +544,18 @@ class RoutingComponentFragment : Fragment() {
         waypoints.add(start)
         waypoints.add(curDestination)
 
-        // Get road from osrm
+        // Get road from OSRM
         var roadManager : OSRMRoadManager = OSRMRoadManager(activity)
         roadManager.setService("http://47.74.218.117:8000/route/v1/walking/")
         val road = roadManager.getRoad(waypoints)
 
+        // Converting Geocode to Address name
         val locationBundle =  geoCoder.getFromLocation(curDestination.latitude,curDestination.longitude,1).get(0)
-        //var roadDestName = locationBundle.getAddressLine(0)
         var roadDestName = locationBundle.extras.get("display_name").toString()
         val separated = roadDestName.split(",")
-//        val max = locationBundle.maxAddressLineIndex
-//        var i = 1
-//        while(i != max)
-//        {
-//            Log.e("adding", locationBundle.getAddressLine(i))
-//            roadDestName += locationBundle.getAddressLine(i)
-//            ++i
-//        }
-        Log.e("gps loc name", ""+locationBundle.extras.get("display_name").toString())
+        Log.e("GPS loc name", ""+locationBundle.extras.get("display_name").toString())
+
+        // Display on UI
         textInputDestination.editText!!.setText(separated[0], TextView.BufferType.EDITABLE)
         endMarker.title = separated[0] + separated[1]
         endMarker.showInfoWindow();
@@ -600,9 +593,11 @@ class RoutingComponentFragment : Fragment() {
         val handler = Handler();
         val r = setRoutes()
         handler.postDelayed(r, 0);
-        //navigateRoute()
     }
 
+    /**
+     * Function to convert Address name to Geocode
+     */
     fun getCoord(name:String):GeoPoint{
         val addresses = getAddressList(name)
         if(addresses.size < 1)
@@ -610,21 +605,30 @@ class RoutingComponentFragment : Fragment() {
         return GeoPoint(addresses.first().latitude, addresses.first().longitude)
     }
 
+    /**
+     * FIX: Geocoder address name translation returning exception
+     */
     fun getAddressList(locationName: String): List<Address> {
         var geoResults: List<Address> = emptyList()
         try {
-            Log.e("geoResult", "try get geocoder")
+            Log.d(TAG, "---Getting Geocoder---")
             geoResults = geoCoder.getFromLocationName(locationName, 1)
-            Log.e("geoResult", (geoResults.size).toString() )
+            Log.d(TAG, "Returning Geocode result size: " + (geoResults.size).toString() )
             if (geoResults.isEmpty())
                 Toast.makeText(activity, "Address not found!", Toast.LENGTH_SHORT).show()
             else {
                 val address: Address = geoResults.first()
-                val boundingbox: BoundingBox? = address.extras.getParcelable("BoundingBox");
-                mapView.zoomToBoundingBox(boundingbox, true)
+                // Extract bounding box in Address
+                val boundingbox: BoundingBox? = address.extras.getParcelable("boundingbox")
+                // Set View to destination
+                if (boundingbox != null) {
+                    mapView.zoomToBoundingBox(boundingbox, false)
+                    mapView.controller.setZoom(16)
+                    mapView.controller.setCenter(GeoPoint(address.latitude, address.longitude))
+                }
             }
         } catch (e: Exception) {
-            Log.e("geo exceptions", e.toString() )
+            Log.d(TAG, "Geocoder Exception: " + e.toString() )
             Toast.makeText(activity, "Geocoding error !", Toast.LENGTH_LONG).show()
         }
         return geoResults
@@ -655,7 +659,6 @@ class RoutingComponentFragment : Fragment() {
         Log.d(TAG, "Navigate end loc long: " + curDestination!!.longitude.toString())
         endMarker.position = curDestination
         endMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-//        endMarker.icon = resources.getDrawable(R.drawable.ICON) ENHANCEMENT: Improve the pin icon
 
         // Routing
         val waypoints = java.util.ArrayList<GeoPoint>()
@@ -668,19 +671,13 @@ class RoutingComponentFragment : Fragment() {
         roadManager.setService("http://47.74.218.117:8000/route/v1/walking/")
         val road = roadManager.getRoad(waypoints)
 
+        // Converting Geocode to Address name
         val locationBundle =  geoCoder.getFromLocation(curDestination.latitude,curDestination.longitude,1).get(0)
-        //var roadDestName = locationBundle.getAddressLine(0)
         var roadDestName = locationBundle.extras.get("display_name").toString()
         val separated = roadDestName.split(",")
-//        val max = locationBundle.maxAddressLineIndex
-//        var i = 1
-//        while(i != max)
-//        {
-//            Log.e("adding", locationBundle.getAddressLine(i))
-//            roadDestName += locationBundle.getAddressLine(i)
-//            ++i
-//        }
-        Log.e("gps loc name", ""+locationBundle.extras.get("display_name").toString())
+        Log.e("GPS loc name", ""+locationBundle.extras.get("display_name").toString())
+
+        // Display on UI
         textInputDestination.editText!!.setText(separated[0], TextView.BufferType.EDITABLE)
         endMarker.title = separated[0] + separated[1]
         endMarker.showInfoWindow();
@@ -744,11 +741,6 @@ class RoutingComponentFragment : Fragment() {
 
             val startPoint = GeoPoint(locationGeoResults.first().latitude, locationGeoResults.first().longitude)
             val endPoint = GeoPoint(destinationGeoResults.first().latitude, destinationGeoResults.first().longitude)
-
-            // Place marker
-            //mapView.overlays.clear()
-            //placeMarker(startPoint, "Start")
-            //placeMarker(endPoint, "End")
 
             waypoints.add(startPoint)
             waypoints.add(endPoint)
