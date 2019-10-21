@@ -205,7 +205,7 @@ class RoutingComponentFragment : Fragment() {
 
     /**
      * FIX: Leaky Location Listeners
-     * Lifecycle where the user navigates to another fragment. Stop Location Listeners
+     * Lifecycle where the user out of the fragment. Stop Location Listeners
      */
     override fun onPause() {
         super.onPause()
@@ -313,7 +313,7 @@ class RoutingComponentFragment : Fragment() {
                         if (ActivityCompat.shouldShowRequestPermissionRationale(activity!!, Manifest.permission.ACCESS_FINE_LOCATION)
                             || ActivityCompat.shouldShowRequestPermissionRationale(activity!!, Manifest.permission.ACCESS_COARSE_LOCATION)
                             || ActivityCompat.shouldShowRequestPermissionRationale(activity!!, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                            explainAndRequestPermissionDialog("Service Permissions are required for this app")
+                            explainAndRequestPermissionDialog("Location and Storage Permissions are required for this app")
                         } else {
                             // Permission is denied and "never ask again" is checked, shouldShowRequestPermissionRationale == false
                             // Show dialog and get them to change their settings to allow location
@@ -463,9 +463,11 @@ class RoutingComponentFragment : Fragment() {
         override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
             Log.d(TAG, "GPS Status" + status.toString())
         }
+
         override fun onProviderEnabled(provider: String?) {
             Log.d(TAG, "GPS Provider Enabled" + provider)
         }
+
         override fun onProviderDisabled(provider: String?) {
             Log.d(TAG, "GPS Provider Disabled" + provider)
         }
@@ -489,9 +491,11 @@ class RoutingComponentFragment : Fragment() {
         override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
             Log.d(TAG, "Network Status" + status.toString())
         }
+
         override fun onProviderEnabled(provider: String?) {
             Log.d(TAG, "Network Provider Enabled" + provider)
         }
+
         override fun onProviderDisabled(provider: String?) {
             Log.d(TAG, "Network Provider Disabled" + provider)
         }
@@ -510,7 +514,8 @@ class RoutingComponentFragment : Fragment() {
         mapView.setMultiTouchControls(true)
 
         // Place marker at start point
-//        val startMarker = Marker(mapView)// FIX: StartMarker to be using the global variable shared across other functions
+        // val startMarker = Marker(mapView)
+        // FIX: StartMarker to be using the global variable shared across other functions
         startMarker.position = start
         startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
         startMarker.title = "Current Location"
